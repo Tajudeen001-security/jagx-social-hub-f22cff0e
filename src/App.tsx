@@ -46,6 +46,11 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import SettingsPage from "./pages/SettingsPage";
 import AffiliatePage from "./pages/AffiliatePage";
 import NotFound from "./pages/NotFound";
+import MarketplacePage from "./pages/MarketplacePage";
+import CreateListingPage from "./pages/CreateListingPage";
+import ListingDetailPage from "./pages/ListingDetailPage";
+import MarketplaceOrdersPage from "./pages/MarketplaceOrdersPage";
+import ProfileVideosFeedPage from "./pages/ProfileVideosFeedPage";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +129,12 @@ const AppContent = () => {
         <Route path="/terms" element={<PrivacyPolicyPage />} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/affiliate" element={<ProtectedRoute><AffiliatePage /></ProtectedRoute>} />
+        <Route path="/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
+        <Route path="/marketplace/new" element={<ProtectedRoute><CreateListingPage /></ProtectedRoute>} />
+        <Route path="/marketplace/orders" element={<ProtectedRoute><MarketplaceOrdersPage /></ProtectedRoute>} />
+        <Route path="/marketplace/:listingId" element={<ProtectedRoute><ListingDetailPage /></ProtectedRoute>} />
+        <Route path="/user/:userId/videos" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
+        <Route path="/user/:userId/videos/:postId" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
