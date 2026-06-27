@@ -123,7 +123,15 @@ const UserProfilePage = () => {
 
       <div className="grid grid-cols-3 gap-[2px]">
         {posts.map((post) => (
-          <button key={post.id} onClick={() => setViewingPost(post)} className="relative aspect-square bg-surface overflow-hidden block">
+          <button
+            key={post.id}
+            onClick={() =>
+              post.video_url
+                ? navigate(`/user/${userId}/videos/${post.id}`)
+                : setViewingPost(post)
+            }
+            className="relative aspect-square bg-surface overflow-hidden block"
+          >
             {post.image_url ? <img src={post.image_url} className="w-full h-full object-cover" loading="lazy" /> :
               post.video_url ? (
                 <div className="relative w-full h-full">
