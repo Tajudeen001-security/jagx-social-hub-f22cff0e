@@ -182,6 +182,7 @@ const FeedPage = () => {
           <h1 className="font-display italic text-xl text-gold">JagX</h1>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate("/ai-chat")} className="text-gold"><Bot className="size-5" /></button>
+            <button onClick={() => navigate("/marketplace")} className="text-gold" aria-label="Marketplace"><ShoppingBag className="size-5" /></button>
             <button onClick={() => navigate("/live")} className="flex items-center gap-1 text-foreground"><Radio className="size-4" /></button>
             <button onClick={() => navigate("/discover")} className="text-foreground"><Users className="size-5" /></button>
             <MessageIconBadge />
