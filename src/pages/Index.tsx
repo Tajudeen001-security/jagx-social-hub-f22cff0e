@@ -1,4 +1,4 @@
-import { Search, Radio, Users, Bot, MessageCircle } from "lucide-react";
+import { Search, Radio, Users, Bot, MessageCircle, ShoppingBag } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import StoryCircle from "@/components/StoryCircle";
