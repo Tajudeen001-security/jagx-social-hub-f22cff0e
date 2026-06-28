@@ -173,9 +173,7 @@ const ProfilePage = () => {
           <div key={post.id} className="relative aspect-square bg-surface overflow-hidden">
             <button
               onClick={() =>
-                post.video_url && user
-                  ? navigate(`/user/${user.id}/videos/${post.id}`)
-                  : setViewingPost(post)
+                user ? navigate(`/user/${user.id}/videos/${post.id}`) : setViewingPost(post)
               }
               className="block w-full h-full"
             >
