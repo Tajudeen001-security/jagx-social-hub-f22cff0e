@@ -12,6 +12,8 @@ import VideoCall from "@/components/VideoCall";
 import CoHostNotice from "@/components/CoHostNotice";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import SeoCheck from "@/components/SeoCheck";
+import Canonical from "@/components/Canonical";
+import { useLocation } from "react-router-dom";
 import CookieConsent from "@/components/CookieConsent";
 import WelcomeBackOverlay from "@/components/WelcomeBackOverlay";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -66,9 +68,12 @@ interface ActiveCall {
 
 const AppContent = () => {
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
+  const location = useLocation();
 
   return (
     <>
+      {/* Per-route canonical so newly added pages (live, settings, marketplace, …) are crawlable. */}
+      <Canonical path={location.pathname + location.search} />
       <AnalyticsTracker />
       <SeoCheck />
       <CookieConsent />
