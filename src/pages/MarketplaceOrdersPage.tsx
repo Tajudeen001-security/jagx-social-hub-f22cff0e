@@ -149,7 +149,7 @@ const MarketplaceOrdersPage = () => {
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium line-clamp-1">{o.listing?.title}</p>
                     <Badge variant="outline" className="text-[10px] capitalize">
-                      {stage >= 0 ? STAGES[stage].label : "Cancelled"}
+                      {stage >= 0 ? STAGES[stage as 0|1|2|3].label : "Cancelled"}
                     </Badge>
                   </div>
                   <p className="text-xs text-gold flex items-center gap-1">
