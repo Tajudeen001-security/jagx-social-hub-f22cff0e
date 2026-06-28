@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Moon, Sun, Bell, Shield, Database, LogOut, Trash2, Gift, Smartphone, Lock } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Bell, Shield, Database, LogOut, Trash2, Gift, Smartphone, Lock, WifiOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,11 +13,24 @@ const applyTheme = (t: Theme) => {
   const isDark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   root.classList.toggle("dark", isDark);
   root.classList.toggle("light", !isDark);
+  // Sync the address bar / PWA theme colour live so changes are visible immediately.
+  const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+  if (meta) meta.content = isDark ? "#0a0a0a" : "#ffffff";
+  window.dispatchEvent(new CustomEvent("jagx-theme-changed", { detail: { theme: t, isDark } }));
 };
 
 export const initTheme = () => {
   const t = (localStorage.getItem("jagx_theme") as Theme) || "dark";
   applyTheme(t);
+  // React to OS-level light/dark changes in real time while in "system" mode.
+  try {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const listener = () => {
+      const cur = (localStorage.getItem("jagx_theme") as Theme) || "dark";
+      if (cur === "system") applyTheme("system");
+    };
+    mq.addEventListener?.("change", listener);
+  } catch { /* ignore */ }
 };
 
 const SettingsPage = () => {
@@ -151,6 +164,10 @@ const SettingsPage = () => {
           <Row label="App cache" desc={storageEstimate}>
             <button onClick={clearCache} className="px-3 py-1.5 rounded-lg bg-surface border border-border/30 text-xs">Clear</button>
           </Row>
+          <button onClick={() => navigate("/offline-videos")} className="w-full mt-1 p-2.5 rounded-xl bg-surface border border-border/30 flex items-center justify-between">
+            <div className="flex items-center gap-2"><WifiOff className="size-4 text-gold" /><span className="text-sm">Offline videos</span></div>
+            <span className="text-xs text-muted-foreground">Pick how many to save →</span>
+          </button>
         </Section>
 
         {/* Account */}

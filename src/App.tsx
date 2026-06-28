@@ -51,6 +51,7 @@ import CreateListingPage from "./pages/CreateListingPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import MarketplaceOrdersPage from "./pages/MarketplaceOrdersPage";
 import ProfileVideosFeedPage from "./pages/ProfileVideosFeedPage";
+import OfflineVideosPage from "./pages/OfflineVideosPage";
 
 const queryClient = new QueryClient();
 
@@ -135,6 +136,7 @@ const AppContent = () => {
         <Route path="/marketplace/:listingId" element={<ProtectedRoute><ListingDetailPage /></ProtectedRoute>} />
         <Route path="/user/:userId/videos" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
         <Route path="/user/:userId/videos/:postId" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
+        <Route path="/offline-videos" element={<ProtectedRoute><OfflineVideosPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
