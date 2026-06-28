@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Coins, Package } from "lucide-react";
+import { ArrowLeft, Check, Coins, MapPin, Package, Phone, Truck, User as UserIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,33 @@ type Order = {
   listing?: { title: string; image_url: string | null };
 };
 
+// Visible pipeline shown to both parties.
+const STAGES = [
+  { key: "placed", label: "Placed" },
+  { key: "paid", label: "Paid" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+] as const;
+
+// Map DB statuses to the displayed stage index.
+const stageIndex = (s: string) => {
+  switch (s) {
+    case "pending": return 1; // payment already debited at order time → Paid
+    case "accepted": return 1; // still paid, awaiting shipment
+    case "out_for_delivery":
+    case "shipped": return 2;
+    case "delivered": return 3;
+    case "cancelled": return -1;
+    default: return 0;
+  }
+};
+
 const MarketplaceOrdersPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<"selling" | "buying">("selling");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -110,54 +132,94 @@ const MarketplaceOrdersPage = () => {
             No orders yet.
           </p>
         )}
-        {orders.map((o) => (
-          <div key={o.id} className="glass rounded-xl p-3 flex gap-3">
-            <div className="size-16 rounded-lg bg-muted overflow-hidden shrink-0">
-              {o.listing?.image_url ? (
-                <img src={o.listing.image_url} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <Package className="size-6 m-auto text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium line-clamp-1">{o.listing?.title}</p>
-                <Badge variant="outline" className="text-[10px]">{o.status}</Badge>
-              </div>
-              <p className="text-xs text-gold flex items-center gap-1">
-                <Coins className="size-3" /> {o.total_coins} JagX × {o.quantity}
-              </p>
-              {tab === "selling" && (
-                <>
-                  <p className="text-[11px] text-muted-foreground">
-                    {o.buyer_name} · {o.buyer_phone}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1">
-                    📍 {o.buyer_address}
-                    {o.distance_km != null && ` (${o.distance_km} km)`}
-                  </p>
-                  {o.note && (
-                    <p className="text-[11px] italic text-muted-foreground">"{o.note}"</p>
+        {orders.map((o) => {
+          const stage = stageIndex(o.status);
+          const open = expanded === o.id;
+          return (
+            <div key={o.id} className="glass rounded-xl p-3 space-y-3">
+              <button onClick={() => setExpanded(open ? null : o.id)} className="w-full flex gap-3 text-left">
+                <div className="size-16 rounded-lg bg-muted overflow-hidden shrink-0">
+                  {o.listing?.image_url ? (
+                    <img src={o.listing.image_url} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <Package className="size-6 m-auto text-muted-foreground" />
                   )}
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {o.status === "pending" && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px]"
-                        onClick={() => updateStatus(o.id, "accepted")}>Accept</Button>
-                    )}
-                    {o.status === "accepted" && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px]"
-                        onClick={() => updateStatus(o.id, "out_for_delivery")}>Out for delivery</Button>
-                    )}
-                    {o.status === "out_for_delivery" && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px]"
-                        onClick={() => updateStatus(o.id, "delivered")}>Mark delivered</Button>
-                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium line-clamp-1">{o.listing?.title}</p>
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {stage >= 0 ? STAGES[stage as 0|1|2|3].label : "Cancelled"}
+                    </Badge>
                   </div>
-                </>
+                  <p className="text-xs text-gold flex items-center gap-1">
+                    <Coins className="size-3" /> {o.total_coins} JagX × {o.quantity}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(o.created_at).toLocaleString()}
+                  </p>
+                </div>
+              </button>
+
+              {/* Status timeline */}
+              <div className="flex items-center gap-1">
+                {STAGES.map((s, i) => {
+                  const done = stage >= i && stage >= 0;
+                  return (
+                    <div key={s.key} className="flex-1 flex flex-col items-center gap-1">
+                      <div className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold ${done ? "gold-gradient text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        {done ? <Check className="size-3" /> : i + 1}
+                      </div>
+                      <span className={`text-[9px] uppercase tracking-wider ${done ? "text-gold" : "text-muted-foreground"}`}>{s.label}</span>
+                      {i < STAGES.length - 1 && (
+                        <div className={`absolute h-px ${done ? "bg-gold" : "bg-muted"}`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(open || tab === "selling") && (
+                <div className="rounded-lg bg-surface/40 p-2 space-y-1 text-[11px]">
+                  <p className="flex items-center gap-1"><UserIcon className="size-3 text-gold" /> {o.buyer_name || "Buyer"}</p>
+                  {o.buyer_phone && (
+                    <a href={`tel:${o.buyer_phone}`} className="flex items-center gap-1 text-gold">
+                      <Phone className="size-3" /> {o.buyer_phone}
+                    </a>
+                  )}
+                  <p className="flex items-start gap-1">
+                    <MapPin className="size-3 mt-0.5 shrink-0" />
+                    <span>{o.buyer_address}{o.distance_km != null && ` (${o.distance_km} km)`}</span>
+                  </p>
+                  {o.note && <p className="italic text-muted-foreground">“{o.note}”</p>}
+                </div>
+              )}
+
+              {tab === "selling" && (
+                <div className="flex gap-1 flex-wrap">
+                  {o.status === "pending" && (
+                    <Button size="sm" className="h-7 text-[11px] gold-gradient text-primary-foreground"
+                      onClick={() => updateStatus(o.id, "accepted")}>
+                      Accept deal
+                    </Button>
+                  )}
+                  {(o.status === "pending" || o.status === "accepted") && (
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                      onClick={() => updateStatus(o.id, "out_for_delivery")}>
+                      <Truck className="size-3 mr-1" /> Mark shipped
+                    </Button>
+                  )}
+                  {o.status === "out_for_delivery" && (
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]"
+                      onClick={() => updateStatus(o.id, "delivered")}>
+                      Mark delivered
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

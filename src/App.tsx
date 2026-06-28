@@ -12,6 +12,8 @@ import VideoCall from "@/components/VideoCall";
 import CoHostNotice from "@/components/CoHostNotice";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import SeoCheck from "@/components/SeoCheck";
+import Canonical from "@/components/Canonical";
+import { useLocation } from "react-router-dom";
 import CookieConsent from "@/components/CookieConsent";
 import WelcomeBackOverlay from "@/components/WelcomeBackOverlay";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -51,6 +53,7 @@ import CreateListingPage from "./pages/CreateListingPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import MarketplaceOrdersPage from "./pages/MarketplaceOrdersPage";
 import ProfileVideosFeedPage from "./pages/ProfileVideosFeedPage";
+import OfflineVideosPage from "./pages/OfflineVideosPage";
 
 const queryClient = new QueryClient();
 
@@ -65,9 +68,12 @@ interface ActiveCall {
 
 const AppContent = () => {
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
+  const location = useLocation();
 
   return (
     <>
+      {/* Per-route canonical so newly added pages (live, settings, marketplace, …) are crawlable. */}
+      <Canonical path={location.pathname + location.search} />
       <AnalyticsTracker />
       <SeoCheck />
       <CookieConsent />
@@ -135,6 +141,7 @@ const AppContent = () => {
         <Route path="/marketplace/:listingId" element={<ProtectedRoute><ListingDetailPage /></ProtectedRoute>} />
         <Route path="/user/:userId/videos" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
         <Route path="/user/:userId/videos/:postId" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
+        <Route path="/offline-videos" element={<ProtectedRoute><OfflineVideosPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

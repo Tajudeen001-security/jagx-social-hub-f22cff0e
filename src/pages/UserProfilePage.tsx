@@ -125,11 +125,7 @@ const UserProfilePage = () => {
         {posts.map((post) => (
           <button
             key={post.id}
-            onClick={() =>
-              post.video_url
-                ? navigate(`/user/${userId}/videos/${post.id}`)
-                : setViewingPost(post)
-            }
+            onClick={() => navigate(`/user/${userId}/videos/${post.id}`)}
             className="relative aspect-square bg-surface overflow-hidden block"
           >
             {post.image_url ? <img src={post.image_url} className="w-full h-full object-cover" loading="lazy" /> :
