@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Heart, MessageCircle, Music2, Send, Share2, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Flag, Heart, Loader2, MessageCircle, Music2, Send, Share2, Volume2, VolumeX, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { getOfflineUrl } from "@/lib/offlineDownloads";
+import ReportDialog from "@/components/ReportDialog";
 
 type Item = {
   id: string;
@@ -44,9 +45,24 @@ const ProfileVideosFeedPage = () => {
   const [muted, setMuted] = useState(true);
   const [commentsFor, setCommentsFor] = useState<Item | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [draft, setDraft] = useState("");
   const [offlineUrls, setOfflineUrls] = useState<Record<string, string>>({});
+  const [report, setReport] = useState<{ type: "post" | "comment"; id: string } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const PAGE = 20;
+
+  const hydrateAuthors = async (list: Comment[]) => {
+    const ids = Array.from(new Set(list.map((c) => c.user_id)));
+    if (ids.length === 0) return list;
+    const { data: profs } = await supabase
+      .from("profiles").select("user_id, username, avatar_url").in("user_id", ids);
+    const map = new Map((profs || []).map((p: any) => [p.user_id, p]));
+    list.forEach((c) => (c.author = map.get(c.user_id) || null));
+    return list;
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -174,32 +190,64 @@ const ProfileVideosFeedPage = () => {
   useEffect(() => {
     if (!commentsFor) return;
     let cancelled = false;
-    const load = async () => {
+    setComments([]); setHasMoreComments(false);
+    (async () => {
       const { data } = await supabase
         .from("comments")
         .select("id, post_id, user_id, content, created_at")
         .eq("post_id", commentsFor.id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .range(0, PAGE - 1);
       const list = (data || []) as Comment[];
-      const ids = Array.from(new Set(list.map((c) => c.user_id)));
-      if (ids.length) {
-        const { data: profs } = await supabase
-          .from("profiles").select("user_id, username, avatar_url").in("user_id", ids);
-        const map = new Map((profs || []).map((p: any) => [p.user_id, p]));
-        list.forEach((c) => (c.author = map.get(c.user_id) || null));
+      await hydrateAuthors(list);
+      if (!cancelled) {
+        setComments(list);
+        setHasMoreComments(list.length === PAGE);
       }
-      if (!cancelled) setComments(list);
-    };
-    load();
+    })();
     const ch = supabase
       .channel(`comments-${commentsFor.id}`)
       .on("postgres_changes", {
-        event: "*", schema: "public", table: "comments",
+        event: "INSERT", schema: "public", table: "comments",
         filter: `post_id=eq.${commentsFor.id}`,
-      }, () => load())
+      }, async (payload) => {
+        const row = payload.new as Comment;
+        const [hydrated] = await hydrateAuthors([row]);
+        setComments((prev) => prev.find((c) => c.id === row.id) ? prev : [hydrated, ...prev]);
+      })
+      .on("postgres_changes", {
+        event: "DELETE", schema: "public", table: "comments",
+        filter: `post_id=eq.${commentsFor.id}`,
+      }, (payload) => {
+        setComments((prev) => prev.filter((c) => c.id !== (payload.old as any).id));
+      })
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [commentsFor]);
+
+  const loadMoreComments = useCallback(async () => {
+    if (!commentsFor || loadingMore || !hasMoreComments) return;
+    setLoadingMore(true);
+    const oldest = comments[comments.length - 1]?.created_at;
+    let q = supabase
+      .from("comments")
+      .select("id, post_id, user_id, content, created_at")
+      .eq("post_id", commentsFor.id)
+      .order("created_at", { ascending: false })
+      .limit(PAGE);
+    if (oldest) q = q.lt("created_at", oldest);
+    const { data } = await q;
+    const list = (data || []) as Comment[];
+    await hydrateAuthors(list);
+    setComments((prev) => [...prev, ...list]);
+    setHasMoreComments(list.length === PAGE);
+    setLoadingMore(false);
+  }, [commentsFor, comments, hasMoreComments, loadingMore]);
+
+  const onCommentsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) loadMoreComments();
+  };
 
   const sendComment = async () => {
     if (!me || !commentsFor) return;
@@ -298,6 +346,12 @@ const ProfileVideosFeedPage = () => {
                 <Share2 className="size-8" />
                 <span className="text-xs font-semibold mt-1">Share</span>
               </button>
+              {me && v.user_id !== me.id && (
+                <button onClick={() => setReport({ type: "post", id: v.id })} className="flex flex-col items-center">
+                  <Flag className="size-7" />
+                  <span className="text-[10px] font-semibold mt-1">Report</span>
+                </button>
+              )}
             </div>
 
             {/* bottom caption */}
@@ -320,10 +374,10 @@ const ProfileVideosFeedPage = () => {
         <div className="absolute inset-0 z-40 flex flex-col bg-black/60" onClick={() => setCommentsFor(null)}>
           <div className="mt-auto bg-background rounded-t-2xl max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
-              <p className="text-sm font-semibold">{comments.length} comments</p>
+              <p className="text-sm font-semibold">{commentsFor.comment_count} comments</p>
               <button onClick={() => setCommentsFor(null)}><X className="size-5" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+            <div onScroll={onCommentsScroll} className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
               {comments.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">Be the first to comment</p>}
               {comments.map((c) => (
                 <div key={c.id} className="flex gap-2">
@@ -334,8 +388,23 @@ const ProfileVideosFeedPage = () => {
                     <p className="text-xs font-semibold">@{c.author?.username || "user"}</p>
                     <p className="text-sm break-words">{c.content}</p>
                   </div>
+                  {me && c.user_id !== me.id && (
+                    <button onClick={() => setReport({ type: "comment", id: c.id })}
+                      className="text-muted-foreground hover:text-red-400 shrink-0" title="Report">
+                      <Flag className="size-4" />
+                    </button>
+                  )}
                 </div>
               ))}
+              {hasMoreComments && (
+                <div className="flex justify-center py-3">
+                  <button onClick={loadMoreComments} disabled={loadingMore}
+                    className="text-xs text-muted-foreground flex items-center gap-1">
+                    {loadingMore ? <Loader2 className="size-3 animate-spin" /> : null}
+                    Load older comments
+                  </button>
+                </div>
+              )}
             </div>
             <div className="p-3 border-t border-border/30 flex gap-2">
               <input
@@ -351,6 +420,15 @@ const ProfileVideosFeedPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {report && (
+        <ReportDialog
+          open={!!report}
+          onClose={() => setReport(null)}
+          targetType={report.type}
+          targetId={report.id}
+        />
       )}
     </div>
   );

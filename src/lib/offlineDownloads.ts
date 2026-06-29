@@ -56,6 +56,16 @@ export async function downloadVideo(meta: Omit<OfflineMeta, "saved_at" | "size">
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  // Also seed the service worker "offline-videos" cache so the regular
+  // <video src={remote_url}> request resolves with no network.
+  try {
+    if (typeof caches !== "undefined") {
+      const cache = await caches.open("offline-videos");
+      await cache.put(url, new Response(blob, {
+        headers: { "Content-Type": blob.type || "video/mp4" },
+      }));
+    }
+  } catch { /* cache API unavailable */ }
   const list = listOffline().filter((m) => m.id !== meta.id);
   list.unshift({ ...meta, size: blob.size, saved_at: Date.now() });
   saveMeta(list);

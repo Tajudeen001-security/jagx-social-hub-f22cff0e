@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, UserPlus, Gift, Trash2, Edit3, X, Check, Forward, Reply } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, UserPlus, Gift, Trash2, Edit3, X, Check, Forward, Reply, Flag } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import TaggedText from "@/components/TaggedText";
 import PollBlock from "@/components/PollBlock";
 import PaywallOverlay from "@/components/PaywallOverlay";
+import ReportDialog from "@/components/ReportDialog";
 
 interface PostCardProps {
   id?: string;
@@ -53,6 +54,7 @@ const PostCard = ({
   const [forwardSearch, setForwardSearch] = useState("");
   const [forwardResults, setForwardResults] = useState<any[]>([]);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+  const [reporting, setReporting] = useState(false);
   const navigate = useNavigate();
 
   const isOwner = user?.id === userId;
@@ -244,11 +246,18 @@ const PostCard = ({
                     <button onClick={handleDelete} className="w-full px-4 py-2.5 text-left text-xs text-red-400 hover:bg-surface-elevated flex items-center gap-2"><Trash2 className="size-3" /> Delete Post</button>
                   </>
                 )}
+                {!isOwner && id && (
+                  <button onClick={() => { setReporting(true); setShowMenu(false); }} className="w-full px-4 py-2.5 text-left text-xs text-red-400 hover:bg-surface-elevated flex items-center gap-2"><Flag className="size-3" /> Report Post</button>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {id && (
+        <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="post" targetId={id} />
+      )}
 
       {editing && (
         <div className="px-4 pb-2 flex items-center gap-2">

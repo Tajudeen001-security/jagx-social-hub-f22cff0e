@@ -96,6 +96,11 @@ const MarketplaceOrdersPage = () => {
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) toast({ title: "Failed", description: error.message, variant: "destructive" });
+    else {
+      // Push the other party (and write an in-app notification row).
+      supabase.functions.invoke("notify-order-status", { body: { order_id: id, status } })
+        .catch((e) => console.warn("[notify-order-status] failed:", e));
+    }
   };
 
   return (

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.og-profile]
 verify_jwt = false
+
+[functions.notify-order-status]
+verify_jwt = false
