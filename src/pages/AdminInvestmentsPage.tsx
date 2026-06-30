@@ -27,7 +27,7 @@ const AdminInvestmentsPage = () => {
       .select("*, investment_projects(name, slug)")
       .eq("status", tab).order("created_at", { ascending: false });
     setApps(data || []);
-    const uids = [...new Set((data || []).map((a: any) => a.user_id))];
+    const uids = [...new Set((data || []).map((a: any) => a.user_id as string))] as string[];
     if (uids.length) {
       const { data: ps } = await supabase.from("profiles").select("user_id, username").in("user_id", uids);
       const m: Record<string, string> = {};
