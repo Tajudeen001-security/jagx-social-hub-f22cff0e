@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Coins, Upload, CheckCircle, BadgeCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,22 @@ const CoinsPage = () => {
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
+  const [myPurchases, setMyPurchases] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { data } = await supabase.from("coin_transactions").select("*")
+        .eq("user_id", user.id).eq("transaction_type", "purchase")
+        .order("created_at", { ascending: false }).limit(10);
+      setMyPurchases(data || []);
+    };
+    load();
+    const ch = supabase.channel("my-coinbuys")
+      .on("postgres_changes", { event: "*", schema: "public", table: "coin_transactions", filter: `user_id=eq.${user.id}` }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "coins" | "verification") => {
     if (!e.target.files?.[0] || !user) return;
@@ -133,6 +149,21 @@ const CoinsPage = () => {
       </div>
 
       <div className="p-4 space-y-4">
+        {myPurchases.length > 0 && (
+          <div className="p-3 rounded-xl bg-surface border border-border space-y-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">My recent purchases</p>
+            {myPurchases.map(p => (
+              <div key={p.id} className="flex items-center justify-between text-sm">
+                <span className="text-champagne">{p.amount} JagX</span>
+                <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  p.status === "approved" ? "bg-green-500/20 text-green-300" :
+                  p.status === "rejected" ? "bg-red-500/20 text-red-300" :
+                  "bg-yellow-500/20 text-yellow-300"
+                }`}>{p.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {tab === "coins" ? (
           <>
             {/* OPay info */}
