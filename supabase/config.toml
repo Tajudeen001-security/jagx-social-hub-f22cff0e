@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.notify-order-status]
 verify_jwt = false
+
+[functions.dispatch-push]
+verify_jwt = false
+
+[functions.issue-investment-certificate]
+verify_jwt = false
