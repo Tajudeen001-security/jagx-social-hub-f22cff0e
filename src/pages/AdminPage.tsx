@@ -446,6 +446,16 @@ const AdminPage = () => {
         </div>
       </header>
 
+      {/* Admin quick links */}
+      <div className="grid grid-cols-3 gap-2 p-3 border-b border-border/20">
+        <button onClick={() => navigate("/admin/investments")}
+          className="py-2 rounded-lg glass text-xs font-bold text-gold">Investments</button>
+        <button onClick={() => navigate("/admin/coin-purchases")}
+          className="py-2 rounded-lg glass text-xs font-bold text-gold">Coin Purchases</button>
+        <button onClick={() => navigate("/admin/reports")}
+          className="py-2 rounded-lg glass text-xs font-bold text-gold">Reports</button>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-border/30">
         {[
