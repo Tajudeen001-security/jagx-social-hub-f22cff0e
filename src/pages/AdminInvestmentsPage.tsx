@@ -10,6 +10,7 @@ const AdminInvestmentsPage = () => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [apps, setApps] = useState<any[]>([]);
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -23,9 +24,16 @@ const AdminInvestmentsPage = () => {
   const load = async () => {
     const { data } = await (supabase as any)
       .from("investment_applications")
-      .select("*, investment_projects(name, slug), profiles!investment_applications_user_id_fkey(username, avatar_url)")
+      .select("*, investment_projects(name, slug)")
       .eq("status", tab).order("created_at", { ascending: false });
     setApps(data || []);
+    const uids = [...new Set((data || []).map((a: any) => a.user_id))];
+    if (uids.length) {
+      const { data: ps } = await supabase.from("profiles").select("user_id, username").in("user_id", uids);
+      const m: Record<string, string> = {};
+      ps?.forEach(p => { m[p.user_id] = p.username || p.user_id; });
+      setUsernames(m);
+    }
   };
 
   useEffect(() => {
@@ -96,7 +104,7 @@ const AdminInvestmentsPage = () => {
               <div><b>Phone:</b> <a href={`tel:${a.phone}`} className="text-gold">{a.phone}</a></div>
               <div className="col-span-2"><b>Address:</b> {a.address}</div>
               <div className="col-span-2"><b>Gov ID:</b> {a.gov_id}</div>
-              <div className="col-span-2"><b>Paid:</b> {a.amount_jagx} JagX (@{a.profiles?.username})</div>
+              <div className="col-span-2"><b>Paid:</b> {a.amount_jagx} JagX (@{usernames[a.user_id] || "user"})</div>
             </div>
             {a.signature_data_url && (
               <div>
