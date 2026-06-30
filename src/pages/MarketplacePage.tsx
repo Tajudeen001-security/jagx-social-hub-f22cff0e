@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, MapPin, Coins, Package, ShoppingBag } from "lucide-react";
+import { Plus, MapPin, Coins, Package, ShoppingBag, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
@@ -77,6 +77,13 @@ const MarketplacePage = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => navigate("/invest")}
+            >
+              <TrendingUp className="size-4 mr-1" /> Invest
+            </Button>
             <Button
               size="sm"
               variant="ghost"
