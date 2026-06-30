@@ -54,6 +54,12 @@ import ListingDetailPage from "./pages/ListingDetailPage";
 import MarketplaceOrdersPage from "./pages/MarketplaceOrdersPage";
 import ProfileVideosFeedPage from "./pages/ProfileVideosFeedPage";
 import OfflineVideosPage from "./pages/OfflineVideosPage";
+import InvestPage from "./pages/InvestPage";
+import InvestProjectPage from "./pages/InvestProjectPage";
+import MyInvestmentsPage from "./pages/MyInvestmentsPage";
+import AdminInvestmentsPage from "./pages/AdminInvestmentsPage";
+import AdminCoinPurchasesPage from "./pages/AdminCoinPurchasesPage";
+import AdminReportsPage from "./pages/AdminReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -142,6 +148,12 @@ const AppContent = () => {
         <Route path="/user/:userId/videos" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
         <Route path="/user/:userId/videos/:postId" element={<ProtectedRoute><ProfileVideosFeedPage /></ProtectedRoute>} />
         <Route path="/offline-videos" element={<ProtectedRoute><OfflineVideosPage /></ProtectedRoute>} />
+        <Route path="/invest" element={<ProtectedRoute><InvestPage /></ProtectedRoute>} />
+        <Route path="/invest/mine" element={<ProtectedRoute><MyInvestmentsPage /></ProtectedRoute>} />
+        <Route path="/invest/:slug" element={<ProtectedRoute><InvestProjectPage /></ProtectedRoute>} />
+        <Route path="/admin/investments" element={<ProtectedRoute><AdminInvestmentsPage /></ProtectedRoute>} />
+        <Route path="/admin/coin-purchases" element={<ProtectedRoute><AdminCoinPurchasesPage /></ProtectedRoute>} />
+        <Route path="/admin/reports" element={<ProtectedRoute><AdminReportsPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
