@@ -106,6 +106,11 @@ const InvestProjectPage = () => {
             <div className="p-2 rounded bg-background">Shares: <span className="text-gold font-bold">{shares}</span></div>
             <div className="p-2 rounded bg-background">Equity: <span className="text-gold font-bold">{equity.toFixed(5)}%</span></div>
           </div>
+          <p className="text-[10px] text-muted-foreground italic">
+            Locked quote: {project.price_per_share_jagx} JagX/share. This price is
+            snapshotted at submission — your certificate will match exactly, even if
+            the project price changes before admin approval.
+          </p>
         </div>
 
         <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
