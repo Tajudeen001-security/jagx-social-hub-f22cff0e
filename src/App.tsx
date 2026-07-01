@@ -60,6 +60,7 @@ import MyInvestmentsPage from "./pages/MyInvestmentsPage";
 import AdminInvestmentsPage from "./pages/AdminInvestmentsPage";
 import AdminCoinPurchasesPage from "./pages/AdminCoinPurchasesPage";
 import AdminReportsPage from "./pages/AdminReportsPage";
+import CoinPurchaseHistoryPage from "./pages/CoinPurchaseHistoryPage";
 
 const queryClient = new QueryClient();
 
