@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Coins, Upload, CheckCircle, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Coins, Upload, CheckCircle, BadgeCheck, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ const COIN_PACKAGES = [
 ];
 
 const VERIFICATION_PRICE = "₦10,000";
+const VERIFICATION_JAGX_COST = 1000;
 const OPAY_NUMBER = "9160654415";
 const ADMIN_EMAIL = "jagwazorld@gmail.com";
 
@@ -28,6 +29,8 @@ const CoinsPage = () => {
   const [uploading, setUploading] = useState(false);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
   const [myPurchases, setMyPurchases] = useState<any[]>([]);
+  const [balance, setBalance] = useState<number>(0);
+  const [redeeming, setRedeeming] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -37,12 +40,31 @@ const CoinsPage = () => {
         .order("created_at", { ascending: false }).limit(10);
       setMyPurchases(data || []);
     };
+    const loadBalance = async () => {
+      const { data } = await supabase.from("profiles").select("coin_balance").eq("user_id", user.id).maybeSingle();
+      setBalance((data as any)?.coin_balance || 0);
+    };
     load();
+    loadBalance();
     const ch = supabase.channel("my-coinbuys")
       .on("postgres_changes", { event: "*", schema: "public", table: "coin_transactions", filter: `user_id=eq.${user.id}` }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` }, loadBalance)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user]);
+
+  const redeemVerificationWithJagx = async () => {
+    if (!user) return;
+    if (balance < VERIFICATION_JAGX_COST) {
+      toast.error(`You need ${VERIFICATION_JAGX_COST} JagX (you have ${balance})`);
+      return;
+    }
+    setRedeeming(true);
+    const { error } = await (supabase as any).rpc("redeem_verification_with_jagx", { _cost: VERIFICATION_JAGX_COST });
+    setRedeeming(false);
+    if (error) return toast.error(error.message);
+    toast.success("Verified instantly with JagX!");
+  };
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "coins" | "verification") => {
     if (!e.target.files?.[0] || !user) return;
@@ -241,6 +263,23 @@ const CoinsPage = () => {
             <div className="p-4 rounded-xl bg-surface border border-border">
               <p className="text-xs text-muted-foreground mb-1">Send payment via OPay to:</p>
               <p className="text-xl font-bold text-gold tracking-wider">{OPAY_NUMBER}</p>
+            </div>
+
+            <div className="p-4 rounded-xl glass gold-glow space-y-2">
+              <div className="flex items-center gap-2">
+                <Zap className="size-4 text-gold" />
+                <p className="text-sm font-semibold text-champagne">Pay with JagX (instant)</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Redeem {VERIFICATION_JAGX_COST} JagX to be verified in real time — no admin review needed. Balance: <span className="text-gold font-bold">{balance} JagX</span>
+              </p>
+              <button
+                onClick={redeemVerificationWithJagx}
+                disabled={redeeming || balance < VERIFICATION_JAGX_COST}
+                className="w-full py-2.5 rounded-xl gold-gradient text-primary-foreground text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+              >
+                {redeeming ? "Redeeming…" : `Redeem ${VERIFICATION_JAGX_COST} JagX`}
+              </button>
             </div>
 
             {!receiptUploaded ? (
