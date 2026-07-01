@@ -5,6 +5,29 @@
 const DB_NAME = "jagx_offline";
 const STORE = "videos";
 const META_KEY = "jagx_offline_meta_v1";
+const LIMIT_KEY = "jagx_offline_limit_mb_v1";
+const DEFAULT_LIMIT_MB = 500;
+
+export function getCacheLimitMB(): number {
+  const v = Number(localStorage.getItem(LIMIT_KEY));
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_LIMIT_MB;
+}
+
+export function setCacheLimitMB(mb: number) {
+  const v = Math.max(10, Math.min(20000, Math.round(mb || DEFAULT_LIMIT_MB)));
+  localStorage.setItem(LIMIT_KEY, String(v));
+  window.dispatchEvent(new CustomEvent("jagx-offline-changed"));
+}
+
+export async function estimateDeviceStorage(): Promise<{ quota: number; usage: number } | null> {
+  try {
+    if (navigator?.storage?.estimate) {
+      const e = await navigator.storage.estimate();
+      return { quota: e.quota || 0, usage: e.usage || 0 };
+    }
+  } catch {}
+  return null;
+}
 
 export type OfflineMeta = {
   id: string;
@@ -49,6 +72,8 @@ export async function downloadVideo(meta: Omit<OfflineMeta, "saved_at" | "size">
   const res = await fetch(url);
   if (!res.ok) throw new Error("Download failed");
   const blob = await res.blob();
+  // Enforce cache-size limit — evict oldest until the new blob fits.
+  await evictUntilFits(blob.size);
   const db = await openDB();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -69,6 +94,26 @@ export async function downloadVideo(meta: Omit<OfflineMeta, "saved_at" | "size">
   const list = listOffline().filter((m) => m.id !== meta.id);
   list.unshift({ ...meta, size: blob.size, saved_at: Date.now() });
   saveMeta(list);
+}
+
+/**
+ * Remove the oldest offline videos until adding `incomingBytes` keeps the
+ * total under the user-configured limit. Also runs on demand from the UI.
+ */
+export async function evictUntilFits(incomingBytes = 0): Promise<number> {
+  const limitBytes = getCacheLimitMB() * 1024 * 1024;
+  let list = listOffline();
+  let total = list.reduce((a, m) => a + (m.size || 0), 0);
+  let removed = 0;
+  // sort oldest first
+  const oldestFirst = [...list].sort((a, b) => (a.saved_at || 0) - (b.saved_at || 0));
+  for (const item of oldestFirst) {
+    if (total + incomingBytes <= limitBytes) break;
+    try { await removeOffline(item.id); } catch {}
+    total -= item.size || 0;
+    removed++;
+  }
+  return removed;
 }
 
 export async function getOfflineUrl(id: string): Promise<string | null> {
