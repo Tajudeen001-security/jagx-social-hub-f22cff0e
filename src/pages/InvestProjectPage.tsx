@@ -44,7 +44,7 @@ const InvestProjectPage = () => {
 
   const shares = project ? Math.floor(amount / project.price_per_share_jagx) : 0;
   const equity = project ? (shares / project.total_shares) * project.equity_total_pct : 0;
-  const balance = profile?.coin_balance ?? 0;
+  const balance = profile?.jagx_coins ?? profile?.coin_balance ?? 0;
 
   // signature canvas
   const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {

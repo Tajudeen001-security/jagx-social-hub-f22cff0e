@@ -60,6 +60,7 @@ import MyInvestmentsPage from "./pages/MyInvestmentsPage";
 import AdminInvestmentsPage from "./pages/AdminInvestmentsPage";
 import AdminCoinPurchasesPage from "./pages/AdminCoinPurchasesPage";
 import AdminReportsPage from "./pages/AdminReportsPage";
+import CoinPurchaseHistoryPage from "./pages/CoinPurchaseHistoryPage";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/create" element={<ProtectedRoute><CreatePage /></ProtectedRoute>} />
         <Route path="/coins" element={<ProtectedRoute><CoinsPage /></ProtectedRoute>} />
+        <Route path="/coins/history" element={<ProtectedRoute><CoinPurchaseHistoryPage /></ProtectedRoute>} />
         <Route path="/live" element={<ProtectedRoute><LivePage /></ProtectedRoute>} />
         <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />

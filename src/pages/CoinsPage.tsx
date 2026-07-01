@@ -41,8 +41,8 @@ const CoinsPage = () => {
       setMyPurchases(data || []);
     };
     const loadBalance = async () => {
-      const { data } = await supabase.from("profiles").select("coin_balance").eq("user_id", user.id).maybeSingle();
-      setBalance((data as any)?.coin_balance || 0);
+      const { data } = await supabase.from("profiles").select("jagx_coins").eq("user_id", user.id).maybeSingle();
+      setBalance((data as any)?.jagx_coins || 0);
     };
     load();
     loadBalance();
@@ -147,6 +147,12 @@ const CoinsPage = () => {
             <ArrowLeft className="size-5" />
           </button>
           <h1 className="font-display italic text-xl text-gold">JagX Store</h1>
+          <button
+            onClick={() => navigate("/coins/history")}
+            className="ml-auto text-xs text-gold font-semibold uppercase tracking-wider"
+          >
+            History
+          </button>
         </div>
       </header>
 
