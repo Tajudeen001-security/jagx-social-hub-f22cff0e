@@ -13,6 +13,10 @@ import {
   clearOffline,
   getOfflineUrl,
   totalOfflineBytes,
+  getCacheLimitMB,
+  setCacheLimitMB,
+  estimateDeviceStorage,
+  evictUntilFits,
   type OfflineMeta,
 } from "@/lib/offlineDownloads";
 
@@ -26,6 +30,10 @@ const OfflineVideosPage = () => {
   const [items, setItems] = useState<OfflineMeta[]>(listOffline());
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [limitMB, setLimitMB] = useState<number>(getCacheLimitMB());
+  const [device, setDevice] = useState<{ quota: number; usage: number } | null>(null);
+
+  useEffect(() => { estimateDeviceStorage().then(setDevice); }, [items.length]);
 
   useEffect(() => {
     const refresh = () => setItems(listOffline());
@@ -48,6 +56,8 @@ const OfflineVideosPage = () => {
     if (!user) return;
     setBusy(true);
     try {
+      // Ensure we have headroom before pulling anything new.
+      await evictUntilFits(0);
       // Prefer videos from people the user follows, then their own, then global recent.
       const { data: follows } = await supabase
         .from("followers").select("following_id").eq("follower_id", user.id);
@@ -126,11 +136,44 @@ const OfflineVideosPage = () => {
                   onChange={(e) => saveCount(Number(e.target.value))}
                   className="w-24" />
               </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs flex-1">Cache size limit (MB)</label>
+                <Input type="number" min={10} max={20000} value={limitMB}
+                  onChange={(e) => { const v = Number(e.target.value); setLimitMB(v); setCacheLimitMB(v); }}
+                  className="w-24" />
+              </div>
               <Button onClick={syncNow} disabled={busy} className="w-full gold-gradient text-primary-foreground">
                 {busy ? <><RefreshCw className="size-4 mr-2 animate-spin" /> Downloading…</> : <><Download className="size-4 mr-2" /> Download now</>}
               </Button>
             </>
           )}
+        </section>
+
+        <section className="rounded-2xl bg-surface border border-border/30 p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="uppercase tracking-widest text-gold font-bold">Storage</span>
+            <span className="text-muted-foreground">
+              {fmtMB(totalOfflineBytes())} of {limitMB} MB used
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full gold-gradient transition-all"
+              style={{ width: `${Math.min(100, (totalOfflineBytes() / (limitMB * 1024 * 1024)) * 100)}%` }}
+            />
+          </div>
+          {device && (
+            <p className="text-[10px] text-muted-foreground">
+              Device: {fmtMB(device.usage)} used of {fmtMB(device.quota)} available
+            </p>
+          )}
+          <Button
+            variant="outline"
+            className="w-full mt-1"
+            onClick={async () => { const n = await evictUntilFits(0); toast.success(n ? `Freed ${n} old video${n === 1 ? "" : "s"}` : "Already within limit"); }}
+          >
+            Evict oldest to fit limit
+          </Button>
         </section>
 
         <section className="rounded-2xl bg-surface border border-border/30 p-4">
