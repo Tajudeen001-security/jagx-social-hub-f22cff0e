@@ -96,7 +96,7 @@ const AdminCoinPurchasesPage = () => {
               <span className="text-sm font-semibold text-champagne">@{usernames[r.user_id] || "user"}</span>
               <span className="flex items-center gap-1 text-gold font-bold text-sm"><Coins className="size-4" /> {r.amount}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()} · OPay ref {r.opay_reference || "—"}</p>
+            <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()} · Ref {r.opay_reference || "—"}</p>
             {r.receipt_url && <ReceiptThumb path={r.receipt_url} />}
             {tab === "pending" && (
               <div className="flex gap-2">
