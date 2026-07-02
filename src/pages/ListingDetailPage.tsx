@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Coins, MapPin, Package, Phone, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Coins, MapPin, Package, Phone, User as UserIcon, Wallet, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { getCurrentPosition, distanceKm } from "@/lib/geolocation";
+import PaymentAccounts from "@/components/PaymentAccounts";
 
 type Listing = {
   id: string;
@@ -37,6 +38,8 @@ const ListingDetailPage = () => {
   const [qty, setQty] = useState(1);
   const [buying, setBuying] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
+  const [payMethod, setPayMethod] = useState<"jagx" | "manual">("jagx");
+  const [payCurrency, setPayCurrency] = useState<string>("USD");
 
   useEffect(() => {
     if (!listingId) return;
@@ -99,7 +102,7 @@ const ListingDetailPage = () => {
       toast({ title: "Delivery address required", variant: "destructive" });
       return;
     }
-    if ((myProfile?.jagx_coins ?? 0) < total) {
+    if (payMethod === "jagx" && (myProfile?.jagx_coins ?? 0) < total) {
       toast({ title: "Not enough JagX coins", description: `You need ${total}`, variant: "destructive" });
       return;
     }
@@ -109,7 +112,6 @@ const ListingDetailPage = () => {
     }
     setBuying(true);
     try {
-      // Persist buyer contact details on profile for next time
       await supabase
         .from("profiles")
         .update({
@@ -120,18 +122,24 @@ const ListingDetailPage = () => {
         } as any)
         .eq("user_id", user.id);
 
-      const { error } = await (supabase as any).rpc("place_marketplace_order", {
-        _listing_id: listing.id,
-        _quantity: qty,
-        _buyer_name: form.name,
-        _buyer_phone: form.phone,
-        _buyer_address: form.address,
-        _buyer_lat: coords?.lat ?? null,
-        _buyer_lng: coords?.lng ?? null,
-        _note: form.note,
-      });
-      if (error) throw error;
-      toast({ title: "Order placed! Seller has been notified." });
+      if (payMethod === "jagx") {
+        const { error } = await (supabase as any).rpc("place_marketplace_order", {
+          _listing_id: listing.id, _quantity: qty,
+          _buyer_name: form.name, _buyer_phone: form.phone, _buyer_address: form.address,
+          _buyer_lat: coords?.lat ?? null, _buyer_lng: coords?.lng ?? null, _note: form.note,
+        });
+        if (error) throw error;
+        toast({ title: "Order placed! Seller has been notified." });
+      } else {
+        const { error } = await (supabase as any).rpc("place_manual_marketplace_order", {
+          _listing_id: listing.id, _quantity: qty,
+          _buyer_name: form.name, _buyer_phone: form.phone, _buyer_address: form.address,
+          _buyer_lat: coords?.lat ?? null, _buyer_lng: coords?.lng ?? null, _note: form.note,
+          _payment_currency: payCurrency, _payment_amount: String(total),
+        });
+        if (error) throw error;
+        toast({ title: "Order reserved", description: "Pay the seller, then upload your receipt from Orders." });
+      }
       navigate("/marketplace/orders");
     } catch (e: any) {
       toast({ title: "Order failed", description: e.message, variant: "destructive" });
@@ -267,12 +275,62 @@ const ListingDetailPage = () => {
             </p>
           </div>
 
+          {/* Payment method */}
+          <div>
+            <Label className="text-xs mb-1 block">Payment method</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setPayMethod("jagx")}
+                className={`p-3 rounded-xl border text-left transition ${
+                  payMethod === "jagx" ? "border-primary bg-primary/10" : "border-border bg-surface"
+                }`}>
+                <div className="flex items-center gap-2 text-sm font-semibold text-champagne">
+                  <Coins className="size-4 text-gold" /> JagX Coins
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Instant, on-platform</p>
+              </button>
+              <button type="button" onClick={() => setPayMethod("manual")}
+                className={`p-3 rounded-xl border text-left transition ${
+                  payMethod === "manual" ? "border-primary bg-primary/10" : "border-border bg-surface"
+                }`}>
+                <div className="flex items-center gap-2 text-sm font-semibold text-champagne">
+                  <Building2 className="size-4 text-gold" /> Manual
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Bank / crypto + receipt</p>
+              </button>
+            </div>
+          </div>
+
+          {payMethod === "manual" && (
+            <>
+              <div>
+                <Label className="text-xs mb-1 block">Pay in</Label>
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+                  {["USD","GBP","EUR","USDC-BEP20","USDT-BEP20","USDT-TRC20"].map(c => (
+                    <button key={c} type="button" onClick={() => setPayCurrency(c)}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition ${
+                        payCurrency === c ? "bg-primary/15 text-gold border-primary/60" : "bg-surface text-muted-foreground border-border"
+                      }`}>{c}</button>
+                  ))}
+                </div>
+              </div>
+              <PaymentAccounts note={`Pay approximately ${total} JagX-equivalent in ${payCurrency}, then upload your receipt after placing the order.`} />
+              <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                <Wallet className="size-3 mt-0.5 shrink-0" />
+                Order reserves stock. The seller releases it after confirming your payment.
+              </p>
+            </>
+          )}
+
           <Button
             className="w-full gold-gradient text-primary-foreground"
             disabled={buying}
             onClick={buy}
           >
-            {buying ? "Placing order…" : `Pay ${total} JagX & Order`}
+            {buying
+              ? "Placing order…"
+              : payMethod === "jagx"
+                ? `Pay ${total} JagX & Order`
+                : `Reserve order · Pay in ${payCurrency}`}
           </Button>
         </div>
       )}

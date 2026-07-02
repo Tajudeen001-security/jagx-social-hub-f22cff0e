@@ -61,6 +61,7 @@ import AdminInvestmentsPage from "./pages/AdminInvestmentsPage";
 import AdminCoinPurchasesPage from "./pages/AdminCoinPurchasesPage";
 import AdminReportsPage from "./pages/AdminReportsPage";
 import CoinPurchaseHistoryPage from "./pages/CoinPurchaseHistoryPage";
+import PaperworkPage from "./pages/PaperworkPage";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +157,7 @@ const AppContent = () => {
         <Route path="/admin/investments" element={<ProtectedRoute><AdminInvestmentsPage /></ProtectedRoute>} />
         <Route path="/admin/coin-purchases" element={<ProtectedRoute><AdminCoinPurchasesPage /></ProtectedRoute>} />
         <Route path="/admin/reports" element={<ProtectedRoute><AdminReportsPage /></ProtectedRoute>} />
+        <Route path="/paperwork" element={<ProtectedRoute><PaperworkPage /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
