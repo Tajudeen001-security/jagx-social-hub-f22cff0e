@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, Coins, MapPin, Package, Phone, Truck, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Check, Coins, MapPin, Package, Phone, Truck, User as UserIcon, Upload, ExternalLink, ShieldCheck, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,10 @@ type Order = {
   note: string | null;
   status: string;
   created_at: string;
+  payment_method?: string | null;
+  payment_currency?: string | null;
+  payment_amount?: string | null;
+  receipt_url?: string | null;
   listing?: { title: string; image_url: string | null };
 };
 
@@ -36,6 +40,8 @@ const STAGES = [
 // Map DB statuses to the displayed stage index.
 const stageIndex = (s: string) => {
   switch (s) {
+    case "awaiting_payment": return 0;         // Placed, waiting for buyer receipt
+    case "awaiting_confirmation": return 0;    // Placed, waiting for seller confirmation
     case "pending": return 1; // payment already debited at order time → Paid
     case "accepted": return 1; // still paid, awaiting shipment
     case "out_for_delivery":
@@ -52,6 +58,8 @@ const MarketplaceOrdersPage = () => {
   const [tab, setTab] = useState<"selling" | "buying">("selling");
   const [orders, setOrders] = useState<Order[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -97,10 +105,42 @@ const MarketplaceOrdersPage = () => {
       .eq("id", id);
     if (error) toast({ title: "Failed", description: error.message, variant: "destructive" });
     else {
-      // Push the other party (and write an in-app notification row).
       supabase.functions.invoke("notify-order-status", { body: { order_id: id, status } })
         .catch((e) => console.warn("[notify-order-status] failed:", e));
     }
+  };
+
+  const receiptUrl = (path?: string | null) => {
+    if (!path) return null;
+    if (path.startsWith("http")) return path;
+    return supabase.storage.from("order-receipts").getPublicUrl(path).data.publicUrl;
+  };
+
+  const uploadReceipt = async (order: Order, file: File) => {
+    if (!user) return;
+    setUploadingFor(order.id);
+    try {
+      const path = `${user.id}/${order.id}_${Date.now()}_${file.name}`;
+      const { error: upErr } = await supabase.storage.from("order-receipts").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { error } = await (supabase as any).rpc("submit_manual_order_receipt", {
+        _order_id: order.id, _receipt_url: path,
+      });
+      if (error) throw error;
+      toast({ title: "Receipt uploaded — waiting for seller to confirm." });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const confirmManualPayment = async (id: string) => {
+    setConfirming(id);
+    const { error } = await (supabase as any).rpc("confirm_manual_order_payment", { _order_id: id });
+    setConfirming(null);
+    if (error) toast({ title: "Failed", description: error.message, variant: "destructive" });
+    else toast({ title: "Payment confirmed. Order marked as Paid." });
   };
 
   return (
@@ -158,7 +198,9 @@ const MarketplaceOrdersPage = () => {
                     </Badge>
                   </div>
                   <p className="text-xs text-gold flex items-center gap-1">
-                    <Coins className="size-3" /> {o.total_coins} JagX × {o.quantity}
+                    {o.payment_method === "manual"
+                      ? <><Building2 className="size-3" /> {o.payment_amount || o.total_coins} {o.payment_currency || "manual"} × {o.quantity}</>
+                      : <><Coins className="size-3" /> {o.total_coins} JagX × {o.quantity}</>}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     {new Date(o.created_at).toLocaleString()}
@@ -197,11 +239,48 @@ const MarketplaceOrdersPage = () => {
                     <span>{o.buyer_address}{o.distance_km != null && ` (${o.distance_km} km)`}</span>
                   </p>
                   {o.note && <p className="italic text-muted-foreground">“{o.note}”</p>}
+                  {o.payment_method === "manual" && (
+                    <p className="flex items-center gap-1 pt-1">
+                      <Building2 className="size-3 text-gold" />
+                      Manual · {o.payment_currency || "?"} · {o.payment_amount || o.total_coins}
+                    </p>
+                  )}
+                  {receiptUrl(o.receipt_url) && (
+                    <a href={receiptUrl(o.receipt_url)!} target="_blank" rel="noopener"
+                      className="inline-flex items-center gap-1 text-gold pt-1">
+                      <ExternalLink className="size-3" /> View payment receipt
+                    </a>
+                  )}
                 </div>
+              )}
+
+              {/* Buyer receipt upload for manual orders */}
+              {tab === "buying" && o.payment_method === "manual" &&
+                (o.status === "awaiting_payment" || o.status === "awaiting_confirmation") && (
+                <label className="flex items-center justify-center gap-2 w-full py-2 rounded-lg gold-gradient text-primary-foreground text-[11px] font-bold uppercase tracking-wider cursor-pointer">
+                  <Upload className="size-3.5" />
+                  {uploadingFor === o.id
+                    ? "Uploading…"
+                    : o.receipt_url ? "Replace receipt" : "Upload payment receipt"}
+                  <input type="file" accept="image/*,application/pdf" className="hidden"
+                    disabled={uploadingFor === o.id}
+                    onChange={(e) => e.target.files?.[0] && uploadReceipt(o, e.target.files[0])} />
+                </label>
               )}
 
               {tab === "selling" && (
                 <div className="flex gap-1 flex-wrap">
+                  {o.payment_method === "manual" && o.status === "awaiting_confirmation" && (
+                    <Button size="sm" disabled={confirming === o.id}
+                      className="h-7 text-[11px] gold-gradient text-primary-foreground"
+                      onClick={() => confirmManualPayment(o.id)}>
+                      <ShieldCheck className="size-3 mr-1" />
+                      {confirming === o.id ? "Confirming…" : "Confirm payment received"}
+                    </Button>
+                  )}
+                  {o.payment_method === "manual" && o.status === "awaiting_payment" && (
+                    <span className="text-[11px] text-muted-foreground italic px-1">Waiting for buyer receipt…</span>
+                  )}
                   {o.status === "pending" && (
                     <Button size="sm" className="h-7 text-[11px] gold-gradient text-primary-foreground"
                       onClick={() => updateStatus(o.id, "accepted")}>
