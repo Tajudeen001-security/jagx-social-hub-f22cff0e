@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
+import PaymentAccounts from "@/components/PaymentAccounts";
 
 const COIN_PACKAGES = [
   { coins: 100, price: "₦1,000" },
@@ -16,7 +17,6 @@ const COIN_PACKAGES = [
 
 const VERIFICATION_PRICE = "₦10,000";
 const VERIFICATION_JAGX_COST = 1000;
-const OPAY_NUMBER = "9160654415";
 const ADMIN_EMAIL = "jagwazorld@gmail.com";
 
 type Tab = "coins" | "verification";
@@ -87,7 +87,7 @@ const CoinsPage = () => {
           amount: pkg.coins,
           transaction_type: "purchase",
           receipt_url: filePath,
-          opay_reference: OPAY_NUMBER,
+          opay_reference: "manual",
           status: "pending",
         });
         if (error) throw error;
@@ -105,7 +105,7 @@ const CoinsPage = () => {
           amount: 0,
           transaction_type: "verification_purchase",
           receipt_url: filePath,
-          opay_reference: OPAY_NUMBER,
+          opay_reference: "manual",
           status: "pending",
         });
         if (txError) throw txError;
@@ -194,14 +194,7 @@ const CoinsPage = () => {
         )}
         {tab === "coins" ? (
           <>
-            {/* OPay info */}
-            <div className="p-4 rounded-xl glass gold-glow">
-              <p className="text-xs text-muted-foreground mb-1">Send payment via OPay to:</p>
-              <p className="text-2xl font-bold text-gold tracking-wider">{OPAY_NUMBER}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Receipt will be sent to {ADMIN_EMAIL} for verification
-              </p>
-            </div>
+            <PaymentAccounts note={`Send payment via any account above, then upload your receipt. Reviewed at ${ADMIN_EMAIL}.`} />
 
             {/* Packages */}
             <div className="space-y-2">
@@ -227,7 +220,7 @@ const CoinsPage = () => {
             {selectedPackage !== null && !receiptUploaded && (
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground text-center">
-                  Send {COIN_PACKAGES[selectedPackage].price} to OPay {OPAY_NUMBER}, then upload your receipt
+                  Send {COIN_PACKAGES[selectedPackage].price} (or crypto equivalent) to any account above, then upload your receipt
                 </p>
                 <label className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl gold-gradient text-primary-foreground text-sm font-bold uppercase tracking-widest cursor-pointer">
                   <Upload className="size-4" />
@@ -266,10 +259,7 @@ const CoinsPage = () => {
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">One-time payment</p>
             </div>
 
-            <div className="p-4 rounded-xl bg-surface border border-border">
-              <p className="text-xs text-muted-foreground mb-1">Send payment via OPay to:</p>
-              <p className="text-xl font-bold text-gold tracking-wider">{OPAY_NUMBER}</p>
-            </div>
+            <PaymentAccounts note="Pay the verification fee via any account above." />
 
             <div className="p-4 rounded-xl glass gold-glow space-y-2">
               <div className="flex items-center gap-2">
