@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Moon, Sun, Bell, Shield, Database, LogOut, Trash2, Gift, Smartphone, Lock, WifiOff } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Bell, Shield, Database, LogOut, Trash2, Gift, Smartphone, Lock, WifiOff, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -174,6 +174,10 @@ const SettingsPage = () => {
         <Section title="Account" icon={<Lock className="size-4" />}>
           <button onClick={() => navigate("/edit-profile")} className="w-full text-left text-sm py-2.5 border-b border-border/20">Edit profile</button>
           <button onClick={() => navigate("/coins")} className="w-full text-left text-sm py-2.5 border-b border-border/20">JagX Coins wallet</button>
+          <button onClick={() => navigate("/paperwork")} className="w-full flex items-center justify-between text-sm py-2.5 border-b border-border/20">
+            <span className="flex items-center gap-2"><FileText className="size-4 text-gold" /> My paperwork</span>
+            <span className="text-[11px] text-muted-foreground">Certificates · orders · receipts →</span>
+          </button>
           <button onClick={async () => { await signOut(); navigate("/auth"); }} className="w-full flex items-center gap-2 text-sm py-2.5 text-red-400 border-b border-border/20">
             <LogOut className="size-4" /> Sign out
           </button>
