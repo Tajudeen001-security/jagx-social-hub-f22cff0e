@@ -16,9 +16,10 @@ const SYSTEM_PROMPT = `You are JagX Buddy, the general-purpose AI assistant for 
 CURRENT DATE: Today is ${CURRENT_DATE}. The year is 2026. Always answer time-sensitive questions with 2026 as the present year.
 PERSONALITY: Friendly, witty, warm, concise. Light emojis. Sign off as "JagX Buddy 🐆" when it fits. Never claim to be ChatGPT, Gemini, or any other product — you are JagX Buddy by JagwaX.`;
 
-const TEXT_MODEL = "google/gemini-3-flash-preview";
+// AI/ML API gateway (aimlapi.com) — OpenAI-compatible.
+const TEXT_MODEL = "gemini-2.5-flash";
 const IMAGE_MODEL = "google/gemini-2.5-flash-image";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1";
+const GATEWAY = "https://api.aimlapi.com/v1";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -38,9 +39,9 @@ serve(async (req) => {
     }
     const { messages = [], generateImage } = body;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+    const AIMLAPI_KEY = Deno.env.get("AIMLAPI_API_KEY");
+    if (!AIMLAPI_KEY) {
+      return new Response(JSON.stringify({ error: "AIMLAPI_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -51,7 +52,7 @@ serve(async (req) => {
       const r = await fetch(`${GATEWAY}/chat/completions`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Authorization": `Bearer ${AIMLAPI_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -91,7 +92,7 @@ serve(async (req) => {
     const r = await fetch(`${GATEWAY}/chat/completions`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${AIMLAPI_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model: TEXT_MODEL, messages: oaiMessages, stream: true }),
@@ -101,7 +102,7 @@ serve(async (req) => {
       const t = await r.text();
       const status = r.status === 429 ? 429 : r.status === 402 ? 402 : 500;
       const msg = r.status === 429 ? "Rate limited, please try again shortly."
-        : r.status === 402 ? "Lovable AI credits exhausted — add credits in workspace billing."
+        : r.status === 402 ? "AI/ML API credits exhausted — top up at aimlapi.com."
         : `AI gateway error: ${t.slice(0, 200)}`;
       return new Response(JSON.stringify({ error: msg }), {
         status, headers: { ...corsHeaders, "Content-Type": "application/json" },
