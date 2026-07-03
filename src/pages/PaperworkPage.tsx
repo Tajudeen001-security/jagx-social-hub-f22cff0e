@@ -1,9 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, ShoppingBag, Store, Receipt, Download, ExternalLink, Package } from "lucide-react";
+import { ArrowLeft, FileText, ShoppingBag, Store, Receipt, Download, ExternalLink, Package, Eye, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import BottomNav from "@/components/BottomNav";
+
+type Preview = { url: string; title: string; kind: "image" | "pdf" | "other" };
+
+const kindOf = (url: string): Preview["kind"] => {
+  const clean = url.split("?")[0].toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|avif|bmp|svg)$/.test(clean)) return "image";
+  if (/\.pdf$/.test(clean)) return "pdf";
+  return "other";
+};
+
+const forceDownloadName = (url: string, fallback: string) => {
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split("/").pop() || fallback;
+    return last.includes(".") ? last : fallback;
+  } catch { return fallback; }
+};
 
 type Tab = "certificates" | "buying" | "selling" | "receipts";
 
@@ -33,6 +50,7 @@ const PaperworkPage = () => {
   const [buying, setBuying] = useState<any[]>([]);
   const [selling, setSelling] = useState<any[]>([]);
   const [receipts, setReceipts] = useState<any[]>([]);
+  const [preview, setPreview] = useState<Preview | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -123,10 +141,12 @@ const PaperworkPage = () => {
                 </p>
                 {r.admin_note && <p className="text-xs text-muted-foreground italic">Note: {r.admin_note}</p>}
                 {r.certificate_url ? (
-                  <a href={r.certificate_url} target="_blank" rel="noopener" download
-                    className="mt-1 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg gold-gradient text-primary-foreground text-xs font-bold uppercase tracking-wider">
-                    <Download className="size-3.5" /> Download JRILICENSE PDF
-                  </a>
+                  <FileActions
+                    url={r.certificate_url}
+                    title={`${r.investment_projects?.name || "Investment"} — JRILICENSE`}
+                    downloadLabel="Download JRILICENSE PDF"
+                    onPreview={setPreview}
+                  />
                 ) : (
                   <p className="text-xs text-muted-foreground italic">Certificate becomes available after admin approval.</p>
                 )}
@@ -138,14 +158,14 @@ const PaperworkPage = () => {
         {tab === "buying" && (
           <>
             {buying.length === 0 && <Empty label="No purchases yet." cta="Open marketplace" onCta={() => navigate("/marketplace")} />}
-            {buying.map(o => <OrderCard key={o.id} o={o} role="buyer" />)}
+            {buying.map(o => <OrderCard key={o.id} o={o} role="buyer" onPreview={setPreview} />)}
           </>
         )}
 
         {tab === "selling" && (
           <>
             {selling.length === 0 && <Empty label="You haven't sold anything yet." cta="Post a listing" onCta={() => navigate("/marketplace/new")} />}
-            {selling.map(o => <OrderCard key={o.id} o={o} role="seller" />)}
+            {selling.map(o => <OrderCard key={o.id} o={o} role="seller" onPreview={setPreview} />)}
           </>
         )}
 
@@ -164,10 +184,12 @@ const PaperworkPage = () => {
                     {t.amount > 0 ? `${t.amount} JagX · ` : ""}{new Date(t.created_at).toLocaleString()}
                   </p>
                   {url && (
-                    <a href={url} target="_blank" rel="noopener"
-                      className="inline-flex items-center gap-1.5 text-xs text-gold font-semibold">
-                      <ExternalLink className="size-3" /> View receipt
-                    </a>
+                    <FileActions
+                      url={url}
+                      title={`Coin purchase receipt — ${new Date(t.created_at).toLocaleDateString()}`}
+                      downloadLabel="Download receipt"
+                      onPreview={setPreview}
+                    />
                   )}
                 </div>
               );
@@ -176,6 +198,7 @@ const PaperworkPage = () => {
         )}
       </div>
 
+      {preview && <PreviewModal p={preview} onClose={() => setPreview(null)} />}
       <BottomNav />
     </div>
   );
@@ -192,7 +215,7 @@ const Empty = ({ label, cta, onCta }: { label: string; cta: string; onCta: () =>
   </div>
 );
 
-const OrderCard = ({ o, role }: { o: any; role: "buyer" | "seller" }) => {
+const OrderCard = ({ o, role, onPreview }: { o: any; role: "buyer" | "seller"; onPreview: (p: Preview) => void }) => {
   const dateLine = new Date(o.created_at).toLocaleString();
   const receiptUrl = o.receipt_url && !o.receipt_url.startsWith("http")
     ? supabase.storage.from("order-receipts").getPublicUrl(o.receipt_url).data.publicUrl
@@ -221,13 +244,75 @@ const OrderCard = ({ o, role }: { o: any; role: "buyer" | "seller" }) => {
         <p><b>Payment:</b> {o.payment_method === "manual" ? `Manual ${o.payment_currency || ""}` : "JagX Coins"}</p>
       </div>
       {receiptUrl && (
-        <a href={receiptUrl} target="_blank" rel="noopener"
-          className="inline-flex items-center gap-1.5 text-xs text-gold font-semibold">
-          <ExternalLink className="size-3" /> View payment receipt
-        </a>
+        <FileActions
+          url={receiptUrl}
+          title={`Payment receipt — ${o.listing?.title || "Order"}`}
+          downloadLabel="Download receipt"
+          onPreview={onPreview}
+        />
       )}
     </div>
   );
 };
+
+const FileActions = ({ url, title, downloadLabel, onPreview }: {
+  url: string; title: string; downloadLabel: string; onPreview: (p: Preview) => void;
+}) => {
+  const kind = kindOf(url);
+  const filename = forceDownloadName(url, `${title.replace(/\s+/g, "-").toLowerCase()}${kind === "pdf" ? ".pdf" : kind === "image" ? ".jpg" : ""}`);
+  return (
+    <div className="mt-2 space-y-2">
+      {kind === "image" && (
+        <button onClick={() => onPreview({ url, title, kind })}
+          className="block w-full rounded-lg overflow-hidden border border-border/60 bg-background">
+          <img src={url} alt={title} className="w-full max-h-48 object-cover" />
+        </button>
+      )}
+      {kind === "pdf" && (
+        <button onClick={() => onPreview({ url, title, kind })}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-background border border-border/60 text-left">
+          <div className="size-8 rounded bg-red-500/15 text-red-300 flex items-center justify-center text-[10px] font-bold">PDF</div>
+          <p className="text-xs text-champagne truncate flex-1">{filename}</p>
+          <Eye className="size-3.5 text-muted-foreground" />
+        </button>
+      )}
+      <div className="flex gap-2">
+        <button onClick={() => onPreview({ url, title, kind })}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-background border border-border text-xs font-semibold text-champagne">
+          <Eye className="size-3.5" /> Preview
+        </button>
+        <a href={url} target="_blank" rel="noopener" download={filename}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg gold-gradient text-primary-foreground text-xs font-bold uppercase tracking-wider">
+          <Download className="size-3.5" /> {downloadLabel}
+        </a>
+      </div>
+    </div>
+  );
+};
+
+const PreviewModal = ({ p, onClose }: { p: Preview; onClose: () => void }) => (
+  <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-xl flex flex-col">
+    <div className="flex items-center gap-3 px-4 h-14 border-b border-border/40">
+      <button onClick={onClose} aria-label="Close"><X className="size-5" /></button>
+      <p className="text-sm font-semibold text-champagne truncate flex-1">{p.title}</p>
+      <a href={p.url} target="_blank" rel="noopener" download
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full gold-gradient text-primary-foreground text-[11px] font-bold uppercase tracking-wider">
+        <Download className="size-3.5" /> Save
+      </a>
+    </div>
+    <div className="flex-1 overflow-auto bg-black/40 flex items-center justify-center">
+      {p.kind === "image" && <img src={p.url} alt={p.title} className="max-w-full max-h-full object-contain" />}
+      {p.kind === "pdf" && <iframe src={p.url} title={p.title} className="w-full h-full min-h-[70vh] bg-white" />}
+      {p.kind === "other" && (
+        <div className="text-center p-8 space-y-3">
+          <p className="text-sm text-muted-foreground">Preview not supported for this file type.</p>
+          <a href={p.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-xs text-gold font-semibold">
+            <ExternalLink className="size-3.5" /> Open in new tab
+          </a>
+        </div>
+      )}
+    </div>
+  </div>
+);
 
 export default PaperworkPage;
