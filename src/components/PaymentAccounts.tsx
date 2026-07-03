@@ -12,6 +12,18 @@ type Account = {
 
 const ACCOUNTS: Account[] = [
   {
+    id: "ngn-opay",
+    label: "NGN (OPay)",
+    currency: "NGN",
+    icon: "bank",
+    fields: [
+      { k: "Account holder", v: "Gbadamosi Tajudeen Olajide" },
+      { k: "Bank name", v: "OPay" },
+      { k: "Account number", v: "9160654415", mono: true },
+      { k: "Country", v: "Nigeria" },
+    ],
+  },
+  {
     id: "usd",
     label: "USD (US Bank)",
     currency: "USD",
