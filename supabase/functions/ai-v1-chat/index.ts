@@ -55,15 +55,15 @@ Deno.serve(async (req) => {
     .eq("id", keyRow.id)
     .then(() => {});
 
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
+  const AIMLAPI_KEY = Deno.env.get("AIMLAPI_API_KEY");
+  if (!AIMLAPI_KEY) {
     return new Response(JSON.stringify({ error: { message: "AI gateway not configured", type: "server_error" } }), {
       status: 500, headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
 
   const body = await req.json().catch(() => ({}));
-  const model = body.model ?? "google/gemini-3-flash-preview";
+  const model = body.model ?? "gemini-2.5-flash";
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const stream = !!body.stream;
   const reasoning = body.reasoning;
@@ -74,9 +74,9 @@ Deno.serve(async (req) => {
     });
   }
 
-  const gw = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const gw = await fetch("https://api.aimlapi.com/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${AIMLAPI_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages, stream, ...(reasoning ? { reasoning } : {}) }),
   });
 
